@@ -88,6 +88,9 @@ export interface NewsArticle {
   entitySlugs: string[];
   summary: string;
   region: string;
+  originalUrl?: string;
+  imageUrl?: string | null;
+  language?: string | null;
 }
 
 export interface Statement {

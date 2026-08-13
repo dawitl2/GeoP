@@ -2,25 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Map as MapLibreMap, setWorkerUrl, type MapLayerMouseEvent, type StyleSpecification } from "maplibre-gl";
 import { feature } from "topojson-client";
 import countriesTopology from "world-atlas/countries-50m.json";
 import type { FeatureCollection, GeoJsonProperties, Geometry, Point, Position } from "geojson";
 import { Banknote, Crosshair, ExternalLink, MapPin, Minus, Newspaper, Plus, RotateCcw, Ship, Swords, Waves, X } from "lucide-react";
-import { useEntities, useNews, useTopics } from "@/lib/queries";
-import {
-  cityFeatures,
-  conflictBriefs,
-  conflictRouteFeatures,
-  continentFocuses,
-  globalNewsFeatures,
-  globalEventFeatures,
-  lakeFeatures,
-  riverFeatures,
-  tradeRouteFeatures,
-  waterLabelFeatures,
-  type MapHoverDetail,
-} from "@/data/mock/map-features";
+import { useConflictEvents, useEntities, useMapGeography, useNews, useTopics } from "@/lib/queries";
+import { continentFocuses, type ConflictBrief, type MapHoverDetail } from "@/data/map-static";
 import { slugifyCountryName } from "@/lib/text";
 import type { GeoEntity, NewsArticle, Topic } from "@/types/domain";
 
@@ -34,6 +23,7 @@ type GlobeProps = {
 const WORLD_CENTER: [number, number] = [18, 12];
 const WORLD_ZOOM = 1.2;
 const emptyFilter = () => ["==", ["get", "slug"], ""] as ["==", ["get", string], string];
+const emptyFeatures: FeatureCollection = { type: "FeatureCollection", features: [] };
 
 const globeStyle: StyleSpecification = {
   version: 8,
@@ -117,6 +107,11 @@ export function GeoGlobe({ compact = false, controlledEntity, controlledTopic, r
   const { data: entities = [] } = useEntities();
   const { data: topics = [] } = useTopics();
   const { data: news = [] } = useNews();
+  const { data: geography } = useMapGeography();
+  const { data: conflictEvents = [] } = useConflictEvents();
+  const realRiverFeatures = geography?.rivers ?? emptyFeatures;
+  const realLakeFeatures = geography?.lakes ?? emptyFeatures;
+  const realCityFeatures = geography?.cities ?? emptyFeatures;
 
   const entityBySlug = useMemo(() => new Map(entities.map((entity) => [entity.slug, entity])), [entities]);
   const topicBySlug = useMemo(() => new Map(topics.map((topic) => [topic.slug, topic])), [topics]);
@@ -155,19 +150,22 @@ export function GeoGlobe({ compact = false, controlledEntity, controlledTopic, r
   const eventFeatures = useMemo<FeatureCollection<Point>>(() => ({
     type: "FeatureCollection",
     features: [
+      ...conflictEvents.map((event) => ({
+        type: "Feature" as const,
+        properties: { name: event.name || event.dyad, slug: event.id, detail: `${event.dyad}; UCDP best estimate ${event.fatalities.best} fatalities.`, status: event.dateEnd, kind: "Conflict", mapType: "event", source: "UCDP" },
+        geometry: { type: "Point" as const, coordinates: [event.coordinates.lng, event.coordinates.lat] },
+      })),
       ...topics.map((topic) => ({
         type: "Feature" as const,
         properties: { name: topic.name, slug: topic.slug, detail: topic.summary, status: topic.status, kind: topic.kind, mapType: "event" },
         geometry: { type: "Point" as const, coordinates: [topic.coordinates.lng, topic.coordinates.lat] },
       })),
-      ...globalEventFeatures.features,
     ],
-  }), [topics]);
+  }), [conflictEvents, topics]);
 
   const newsFeatures = useMemo<FeatureCollection<Point>>(() => ({
     type: "FeatureCollection",
     features: [
-      ...globalNewsFeatures.features,
       ...news.flatMap((article, index) => {
         const entity = article.entitySlugs.map((slug) => entityBySlug.get(slug)).find(Boolean);
         if (!entity) return [];
@@ -190,11 +188,11 @@ export function GeoGlobe({ compact = false, controlledEntity, controlledTopic, r
     setActiveDetail(null);
     setLens(null);
     map.setFilter("country-selected", ["==", ["get", "continent"], slug]);
-    map.easeTo({ center: continent.center, zoom: continent.zoom, bearing: map.getBearing() + 22, duration: 1450, essential: true });
+    map.easeTo({ center: continent.center, zoom: continent.zoom, bearing: 0, pitch: 0, duration: 1450, essential: true });
   }, []);
 
   useEffect(() => {
-    if (!container.current || mapRef.current || !entities.length || !topics.length) return;
+    if (!container.current || mapRef.current || !entities.length || !geography) return;
     setReady(false);
     setWorkerUrl("/maplibre-gl-worker.mjs");
     const map = new MapLibreMap({
@@ -205,37 +203,29 @@ export function GeoGlobe({ compact = false, controlledEntity, controlledTopic, r
       minZoom: 0.5,
       maxZoom: 7,
       attributionControl: false,
-      dragRotate: true,
+      dragRotate: false,
       pitchWithRotate: false,
+      touchPitch: false,
     });
     mapRef.current = map;
+    map.touchZoomRotate.disableRotation();
     map.on("style.load", () => map.setProjection({ type: "globe" }));
     map.on("load", () => {
       map.addSource("countries", { type: "geojson", data: countries, promoteId: "slug" });
       map.addLayer({ id: "country-fill", type: "fill", source: "countries", paint: { "fill-color": ["case", ["==", ["get", "rich"], 1], "#668876", "#4f6f63"], "fill-opacity": 0.98, "fill-outline-color": "#9bb7ad" } });
       map.addLayer({ id: "country-selected", type: "fill", source: "countries", filter: emptyFilter(), paint: { "fill-color": "#c2d68f", "fill-opacity": 0.62 } });
 
-      map.addSource("lakes", { type: "geojson", data: lakeFeatures });
+      map.addSource("lakes", { type: "geojson", data: realLakeFeatures });
       map.addLayer({ id: "lakes", type: "fill", source: "lakes", minzoom: 2, paint: { "fill-color": "#17657b", "fill-outline-color": "#68a9ba", "fill-opacity": 0.92 } });
       map.addSource("country-label-source", { type: "geojson", data: countryLabels });
       map.addLayer({ id: "country-labels", type: "symbol", source: "country-label-source", minzoom: 1.65, layout: { "text-field": ["get", "name"], "text-size": ["interpolate", ["linear"], ["zoom"], 1.65, 8, 4.5, 12], "text-letter-spacing": 0.13, "text-transform": "uppercase", "text-allow-overlap": false, "text-padding": 5 }, paint: { "text-color": "#eef3e8", "text-halo-color": "#21463f", "text-halo-width": 1.4, "text-opacity": ["interpolate", ["linear"], ["zoom"], 1.65, 0.72, 3.5, 0.95] } });
 
-      map.addSource("water-label-source", { type: "geojson", data: waterLabelFeatures });
-      map.addLayer({ id: "water-labels", type: "symbol", source: "water-label-source", minzoom: 0.8, layout: { "text-field": ["get", "name"], "text-size": ["match", ["get", "kind"], "ocean", 13, "sea", 10, 9], "text-letter-spacing": 0.18, "text-allow-overlap": false }, paint: { "text-color": "#73adbd", "text-halo-color": "#0b3443", "text-halo-width": 1.2, "text-opacity": 0.8 } });
-
-      map.addSource("trade-routes", { type: "geojson", data: tradeRouteFeatures });
-      map.addLayer({ id: "trade-routes", type: "line", source: "trade-routes", minzoom: 1.35, paint: { "line-color": "#d4af62", "line-width": ["interpolate", ["linear"], ["zoom"], 1.4, 0.7, 4, 2], "line-opacity": 0.62, "line-dasharray": [3, 3] } });
-      map.addLayer({ id: "trade-hit", type: "line", source: "trade-routes", minzoom: 1.35, paint: { "line-color": "#fff", "line-width": 12, "line-opacity": 0 } });
-
-      map.addSource("conflict-routes", { type: "geojson", data: conflictRouteFeatures });
-      map.addLayer({ id: "conflict-routes", type: "line", source: "conflict-routes", minzoom: 1.5, paint: { "line-color": ["match", ["get", "kind"], "Tension", "#e3b85e", "#df6b66"], "line-width": ["interpolate", ["linear"], ["zoom"], 1.5, 1, 4, 3], "line-opacity": 0.82, "line-dasharray": [2, 1] } });
-
-      map.addSource("rivers", { type: "geojson", data: riverFeatures });
+      map.addSource("rivers", { type: "geojson", data: realRiverFeatures });
       map.addLayer({ id: "rivers", type: "line", source: "rivers", minzoom: 2.35, paint: { "line-color": "#64b5ca", "line-width": ["interpolate", ["linear"], ["zoom"], 2.35, 1, 6, 3.4], "line-opacity": 0.9 } });
       map.addLayer({ id: "river-labels", type: "symbol", source: "rivers", minzoom: 2.6, layout: { "symbol-placement": "line", "text-field": ["get", "name"], "text-size": 10, "text-letter-spacing": 0.08 }, paint: { "text-color": "#9bd0db", "text-halo-color": "#173f49", "text-halo-width": 1.5 } });
       map.addLayer({ id: "river-hit", type: "line", source: "rivers", minzoom: 2.35, paint: { "line-color": "#fff", "line-width": 14, "line-opacity": 0 } });
 
-      map.addSource("cities", { type: "geojson", data: cityFeatures });
+      map.addSource("cities", { type: "geojson", data: realCityFeatures });
       map.addLayer({ id: "cities", type: "circle", source: "cities", minzoom: 2.25, paint: { "circle-radius": ["match", ["get", "priority"], 1, 4.3, 2, 3.4, 2.8], "circle-color": "#f2d98d", "circle-stroke-width": 1.2, "circle-stroke-color": "#172027" } });
       map.addLayer({ id: "city-labels", type: "symbol", source: "cities", minzoom: 2.45, layout: { "text-field": ["get", "name"], "text-size": ["interpolate", ["linear"], ["zoom"], 2.45, 9, 5, 12], "text-offset": [0, 1.15], "text-anchor": "top", "text-allow-overlap": false, "text-padding": 4 }, paint: { "text-color": "#fff1c7", "text-halo-color": "#142c30", "text-halo-width": 1.5 } });
 
@@ -276,9 +266,7 @@ export function GeoGlobe({ compact = false, controlledEntity, controlledTopic, r
     hoverLayer("cities", "city");
     hoverLayer("river-hit", "river");
     hoverLayer("events", "event");
-    hoverLayer("conflict-routes", "event");
     hoverLayer("news-markers", "news");
-    hoverLayer("trade-hit", "trade");
 
     map.on("click", "country-fill", (event: MapLayerMouseEvent) => {
       const item = event.features?.[0];
@@ -296,7 +284,7 @@ export function GeoGlobe({ compact = false, controlledEntity, controlledTopic, r
       setSelectedContinent(null);
       setActiveDetail(info);
       map.setFilter("country-selected", ["==", ["get", "slug"], slug]);
-      map.easeTo({ center, zoom: Math.max(map.getZoom(), 3), bearing: map.getBearing() + 16, duration: 1350, essential: true });
+      map.easeTo({ center, zoom: Math.max(map.getZoom(), 3), bearing: 0, pitch: 0, duration: 1350, essential: true });
     });
 
     const activateLayer = (layer: string, type: MapHoverDetail["type"]) => map.on("click", layer, (event: MapLayerMouseEvent) => {
@@ -314,9 +302,7 @@ export function GeoGlobe({ compact = false, controlledEntity, controlledTopic, r
       });
     });
     activateLayer("events", "event");
-    activateLayer("conflict-routes", "event");
     activateLayer("news-markers", "news");
-    activateLayer("trade-hit", "trade");
     map.on("click", "river-hit", (event: MapLayerMouseEvent) => {
       const item = event.features?.[0];
       if (!item) return;
@@ -326,15 +312,15 @@ export function GeoGlobe({ compact = false, controlledEntity, controlledTopic, r
     });
     map.on("error", (event) => console.error("[geoP globe]", event.error));
     return () => { map.remove(); mapRef.current = null; };
-  }, [compact, countries, countryLabels, entities.length, eventFeatures, focusContinentFromMap, newsFeatures, topics.length]);
+  }, [compact, countries, countryLabels, entities.length, eventFeatures, focusContinentFromMap, geography, newsFeatures, realCityFeatures, realLakeFeatures, realRiverFeatures]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
     const entity = controlledEntity ? entityBySlug.get(controlledEntity) : undefined;
     const topic = controlledTopic ? topicBySlug.get(controlledTopic) : undefined;
-    if (entity) map.flyTo({ center: [entity.coordinates.lng, entity.coordinates.lat], zoom: 3.2, duration: 1100, essential: true });
-    if (topic) map.flyTo({ center: [topic.coordinates.lng, topic.coordinates.lat], zoom: Math.max(topic.coordinates.zoom, 3.2), duration: 1100, essential: true });
+    if (entity) map.flyTo({ center: [entity.coordinates.lng, entity.coordinates.lat], zoom: 3.2, bearing: 0, pitch: 0, duration: 1100, essential: true });
+    if (topic) map.flyTo({ center: [topic.coordinates.lng, topic.coordinates.lat], zoom: Math.max(topic.coordinates.zoom, 3.2), bearing: 0, pitch: 0, duration: 1100, essential: true });
     if (relatedSlugs.length) map.setFilter("country-selected", ["in", ["get", "slug"], ["literal", relatedSlugs]]);
   }, [controlledEntity, controlledTopic, entityBySlug, ready, relatedSlugs, topicBySlug]);
 
@@ -344,9 +330,9 @@ export function GeoGlobe({ compact = false, controlledEntity, controlledTopic, r
     map.on("load", () => {
       map.addSource("countries-lens", { type: "geojson", data: countries });
       map.addLayer({ id: "countries-lens", type: "fill", source: "countries-lens", paint: { "fill-color": "#597b6c", "fill-outline-color": "#aac3b8", "fill-opacity": 1 } });
-      map.addSource("lakes-lens", { type: "geojson", data: lakeFeatures });
+      map.addSource("lakes-lens", { type: "geojson", data: realLakeFeatures });
       map.addLayer({ id: "lakes-lens", type: "fill", source: "lakes-lens", paint: { "fill-color": "#17657b", "fill-opacity": 0.95 } });
-      map.addSource("rivers-lens", { type: "geojson", data: riverFeatures });
+      map.addSource("rivers-lens", { type: "geojson", data: realRiverFeatures });
       map.addLayer({ id: "rivers-lens", type: "line", source: "rivers-lens", paint: { "line-color": "#80d1df", "line-width": 3 } });
     });
     return () => map.remove();
@@ -367,7 +353,13 @@ export function GeoGlobe({ compact = false, controlledEntity, controlledTopic, r
   const activeEntity = selectedCountry ? entityBySlug.get(selectedCountry) : undefined;
   const activeContinent = selectedContinent ? continentFocuses.find((item) => item.slug === selectedContinent) : undefined;
   const activeTopic = railDetail?.slug ? topicBySlug.get(railDetail.slug) : undefined;
-  const conflict = railDetail?.slug ? conflictBriefs[railDetail.slug] : undefined;
+  const liveConflict = railDetail?.slug ? conflictEvents.find((event) => event.id === railDetail.slug) : undefined;
+  const conflict = liveConflict ? {
+    slug: liveConflict.id,
+    intensity: "active" as const,
+    participants: [{ name: liveConflict.sideA, role: "UCDP side A", losses: `${liveConflict.fatalities.sideA} recorded deaths` }, { name: liveConflict.sideB, role: "UCDP side B", losses: `${liveConflict.fatalities.sideB} recorded deaths` }].filter((actor) => actor.name),
+    civilianImpact: `Best estimate ${liveConflict.fatalities.best}; range ${liveConflict.fatalities.low}-${liveConflict.fatalities.high}; civilian deaths ${liveConflict.fatalities.civilians}. UCDP Candidate GED ${liveConflict.provenance.release}; estimates may be revised.`,
+  } : undefined;
   const relatedNews = activeTopic ? news.filter((item) => item.topicSlug === activeTopic.slug).slice(0, 3) : activeEntity ? news.filter((item) => item.entitySlugs.includes(activeEntity.slug)).slice(0, 3) : news.slice(0, 3);
 
   return (
@@ -401,12 +393,12 @@ function CountryRail({ name, detail, entity, news }: { name: string; detail: str
   return <><div className="eyebrow">Country focus</div><h2 className="mt-3 text-2xl tracking-[-.04em]">{name}</h2><p className="mt-3 text-xs leading-6 text-[var(--muted)]">{detail}</p>{entity ? <div className="mt-5 grid grid-cols-2 gap-px bg-white/10"><Metric label="Capital" value={entity.capital}/><Metric label="Population" value={entity.population}/><Metric label="Currency" value={entity.currency}/><Metric label="Region" value={entity.region}/></div> : <div className="mt-5 border border-white/10 p-3 text-[10px] leading-5 text-[var(--muted)]">Selectable global geometry. Rich demographic and economic coverage is still limited in this prototype.</div>}<NewsList news={news}/></>;
 }
 
-function RailDetail({ detail, topic, conflict, entity, news }: { detail: MapHoverDetail; topic?: Topic; conflict?: typeof conflictBriefs[string]; entity?: GeoEntity; news: NewsArticle[] }) {
+function RailDetail({ detail, topic, conflict, entity, news }: { detail: MapHoverDetail; topic?: Topic; conflict?: ConflictBrief; entity?: GeoEntity; news: NewsArticle[] }) {
   const Icon = detail.type === "event" ? Swords : detail.type === "trade" ? Ship : detail.type === "news" ? Newspaper : detail.type === "river" || detail.type === "water" ? Waves : MapPin;
   return <><div className="flex items-center gap-2"><Icon size={13} className="text-[#87cdb2]"/><div className="eyebrow">{detail.eyebrow}</div></div>{detail.source ? <div className="mt-4 flex items-center gap-3"><SourceBadge source={detail.source}/><div><div className="text-xs">{detail.source}</div><div className="mono mt-1 text-[8px] text-[var(--faint)]">SOURCE VIEW · DEMO</div></div></div> : null}<h2 className="mt-4 text-xl leading-6 tracking-[-.035em]">{detail.name}</h2><p className="mt-3 text-[11px] leading-6 text-[var(--muted)]">{topic?.summary ?? detail.detail}</p>{detail.type === "trade" ? <TradeGraphic detail={detail.detail}/> : null}{conflict ? <ConflictGraphic conflict={conflict}/> : null}{topic ? <><div className="mt-6"><div className="eyebrow mb-3">How sides frame it</div>{topic.coverage.slice(1,4).map((side) => <div key={side.name} className="border-t border-white/10 py-3"><div className="flex items-center justify-between"><span className="text-[10px]">{side.name}</span><span className="mono text-[8px] text-[var(--faint)]">{side.volume}%</span></div><p className="mt-2 text-[9px] leading-4 text-[var(--muted)]">{side.framing}</p></div>)}</div><Link href={`/topic/${topic.slug}`} className="mt-4 flex items-center gap-2 text-[10px] text-[#bfcf87]">Open full topic context <ExternalLink size={11}/></Link></> : null}{entity && detail.type === "country" ? <div className="mt-5 grid grid-cols-2 gap-px bg-white/10"><Metric label="Capital" value={entity.capital}/><Metric label="Currency" value={entity.currency}/></div> : null}<NewsList news={news}/></>;
 }
 
-function ConflictGraphic({ conflict }: { conflict: typeof conflictBriefs[string] }) {
+function ConflictGraphic({ conflict }: { conflict: ConflictBrief }) {
   return <div className="mt-5 border border-[#df6b66]/25 bg-[#df6b66]/[.04] p-3"><div className="flex items-center justify-between"><span className="eyebrow text-[#e78882]">Conflict impact</span><span className="mono text-[8px] uppercase text-[#e78882]">{conflict.intensity}</span></div><div className="mt-3 space-y-3">{conflict.participants.map((actor, index) => <div key={actor.name}><div className="flex justify-between gap-3 text-[9px]"><span>{actor.name}</span><span className="text-right text-[var(--muted)]">{actor.losses}</span></div><div className="mt-1.5 h-1 bg-white/8"><div className="h-full bg-[#df6b66]" style={{ width: `${Math.max(28, 82 - index * 20)}%` }}/></div></div>)}</div><p className="mt-3 border-t border-white/10 pt-3 text-[9px] leading-4 text-[var(--muted)]">{conflict.civilianImpact}</p><div className="mono mt-2 text-[7px] text-[var(--faint)]">ILLUSTRATIVE RANGES · NOT LIVE CASUALTY DATA</div></div>;
 }
 
@@ -421,7 +413,8 @@ function NewsList({ news }: { news: NewsArticle[] }) {
 
 function SourceBadge({ source }: { source: string }) {
   const mark = sourceMark(source);
-  return <div title={source} className="grid h-8 min-w-8 shrink-0 place-items-center px-1 text-center font-bold tracking-[-.06em]" style={{ background: mark.background, color: mark.color, fontSize: mark.mark.length > 3 ? 7 : 9 }}>{mark.mark}</div>;
+  const domain = source.includes(".") ? source.replace(/^www\./, "") : null;
+  return <div title={source} className="grid h-8 min-w-8 shrink-0 place-items-center overflow-hidden px-1 text-center font-bold tracking-[-.06em]" style={{ background: mark.background, color: mark.color, fontSize: mark.mark.length > 3 ? 7 : 9 }}>{domain ? <Image src={`https://${domain}/favicon.ico`} alt={`${source} logo`} width={22} height={22} unoptimized/> : mark.mark}</div>;
 }
 
 function LayerKey({ color, label, dashed = false }: { color: string; label: string; dashed?: boolean }) {
@@ -431,3 +424,5 @@ function LayerKey({ color, label, dashed = false }: { color: string; label: stri
 function Metric({ label, value }: { label: string; value: string }) {
   return <div className="bg-[#09141a] p-3"><div className="eyebrow text-[7px]">{label}</div><div className="mt-2 truncate text-[9px]">{value}</div></div>;
 }
+
+

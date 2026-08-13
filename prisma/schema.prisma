@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SourceKind {
+  NEWS
+  CONFLICT
+  ECONOMY
+  TRADE
+  GEOGRAPHY
+  CONTEXT
+  OFFICIAL
+  DISASTER
+}
+
+enum GeoEntityType {
+  SOVEREIGN_STATE
+  PARTIALLY_RECOGNIZED_STATE
+  DE_FACTO_STATE
+  DEPENDENCY
+  TERRITORY
+  DISPUTED_TERRITORY
+  SPECIAL_REGION
+  AUTONOMOUS_REGION
+  ORGANIZATION
+  ARMED_GROUP
+  OTHER
+}
+
+model DataSource {
+  id          String       @id @default(uuid()) @db.Uuid
+  slug        String       @unique
+  name        String
+  kind        SourceKind
+  baseUrl     String
+  license     String?
+  version     String?
+  requiresKey Boolean      @default(false)
+  enabled     Boolean      @default(true)
+  lastSuccess DateTime?
+  lastFailure DateTime?
+  lastError   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  runs        IngestionRun[]
+}
+
+model GeoEntity {
+  id              String        @id @default(uuid()) @db.Uuid
+  slug            String        @unique
+  canonicalName   String
+  displayName     String
+  entityType      GeoEntityType
+  isoAlpha2       String?       @unique
+  isoAlpha3       String?       @unique
+  wikidataId      String?       @unique
+  continent       String?
+  region          String?
+  subregion       String?
+  capital         String?
+  population      BigInt?
+  currencies      Json?
+  languages       Json?
+  aliases         String[]
+  centroidLng     Float?
+  centroidLat     Float?
+  geometry        Json?
+  recognitionInfo Json?
+  boundarySource  String?
+  sourceRefs      Json?
+  retrievedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  designations    ActorDesignation[] @relation("DesignatedActor")
+}
+
+model NewsArticle {
+  id            String   @id @default(uuid()) @db.Uuid
+  provider      String
+  providerId    String
+  headline      String
+  originalUrl   String
+  imageUrl      String?
+  sourceName    String?
+  sourceDomain  String
+  sourceCountry String?
+  language      String?
+  publishedAt   DateTime
+  retrievedAt   DateTime @default(now())
+  themes        String[]
+  entitySlugs   String[]
+  locations     Json?
+  raw           Json?
+  @@unique([provider, providerId])
+  @@index([publishedAt(sort: Desc)])
+  @@index([sourceDomain])
+}
+
+model ConflictEvent {
+  id                String   @id @default(uuid()) @db.Uuid
+  provider          String
+  providerId        String
+  sourceVersion     String
+  conflictId        String?
+  conflictName      String
+  dyadName          String?
+  sideA             String?
+  sideB             String?
+  alliesA           String[]
+  alliesB           String[]
+  country            String?
+  region             String?
+  latitude           Float
+  longitude          Float
+  locationName       String?
+  dateStart          DateTime
+  dateEnd            DateTime
+  fatalitiesBest    Int?
+  fatalitiesLow     Int?
+  fatalitiesHigh    Int?
+  civilianDeaths    Int?
+  typeOfViolence    Int?
+  sourceOriginal    String?
+  sourceUrl          String?
+  raw                Json?
+  retrievedAt        DateTime @default(now())
+  @@unique([provider, providerId, sourceVersion])
+  @@index([dateEnd(sort: Desc)])
+  @@index([longitude, latitude])
+}
+
+model EconomicObservation {
+  id          String   @id @default(uuid()) @db.Uuid
+  provider    String
+  entityCode  String
+  indicator   String
+  indicatorName String
+  year        Int
+  value       Float?
+  unit        String?
+  sourceNote  String?
+  retrievedAt DateTime @default(now())
+  @@unique([provider, entityCode, indicator, year])
+  @@index([entityCode, indicator, year(sort: Desc)])
+}
+
+model TradeObservation {
+  id           String   @id @default(uuid()) @db.Uuid
+  provider     String
+  reporterCode String
+  partnerCode  String
+  flowCode     String
+  commodityCode String
+  period       String
+  valueUsd     Decimal? @db.Decimal(20, 2)
+  netWeightKg  Decimal? @db.Decimal(20, 3)
+  raw          Json?
+  retrievedAt  DateTime @default(now())
+  @@unique([provider, reporterCode, partnerCode, flowCode, commodityCode, period])
+}
+
+model GeoFeature {
+  id           String   @id @default(uuid()) @db.Uuid
+  provider     String
+  providerId   String
+  featureType  String
+  name         String?
+  nameEnglish  String?
+  scaleRank    Int?
+  minZoom      Float?
+  geometry     Json
+  properties   Json?
+  sourceVersion String
+  retrievedAt  DateTime @default(now())
+  @@unique([provider, providerId, sourceVersion])
+  @@index([featureType, scaleRank])
+}
+
+model ActorDesignation {
+  id             String   @id @default(uuid()) @db.Uuid
+  actorId        String   @db.Uuid
+  actor          GeoEntity @relation("DesignatedActor", fields: [actorId], references: [id], onDelete: Cascade)
+  designatedBy   String
+  designation    String
+  legalBasis     String?
+  effectiveAt    DateTime?
+  endedAt        DateTime?
+  sourceUrl      String
+  retrievedAt    DateTime @default(now())
+  @@unique([actorId, designatedBy, designation, sourceUrl])
+}
+
+model IngestionRun {
+  id          String   @id @default(uuid()) @db.Uuid
+  sourceId    String   @db.Uuid
+  source      DataSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  status      String
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  readCount   Int      @default(0)
+  writeCount  Int      @default(0)
+  errorCount  Int      @default(0)
+  cursor      String?
+  metadata    Json?
+  error       String?
+  @@index([sourceId, startedAt(sort: Desc)])
+}
