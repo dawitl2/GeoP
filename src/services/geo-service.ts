@@ -32,8 +32,11 @@ export const geoService = {
   search: (query: string) => request<SearchResult[]>(`/search?q=${encodeURIComponent(query)}`),
   geography: () => request<RealMapGeography>("/map/geography"),
   conflicts: () => request<RealConflictEvent[]>("/conflicts?days=365"),
+  media: (query: string) => request<MediaResult[]>(`/media/search?q=${encodeURIComponent(query)}&limit=3`),
   continents,
 };
+
+export type MediaResult = { title: string; imageUrl: string; originalUrl: string; width: number; height: number; artist: string | null; license: string | null; licenseUrl: string | null; credit: string | null; provider: string };
 
 export type RealMapGeography = {
   rivers: GeoJSON.FeatureCollection;

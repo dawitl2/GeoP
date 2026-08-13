@@ -1,65 +1,64 @@
-# geoP — Level 1 frontend prototype
+# geoP
 
-geoP is a globe-centered geopolitical intelligence and exploration interface. Level 1 is a complete clickable frontend prototype built with local structured demonstration data. It intentionally does not call live geopolitical services or implement the future NestJS backend.
+geoP is a globe-centered geopolitical intelligence platform built to make countries, conflicts, reporting, physical geography, and economic context explorable in one interface. The globe stays upright, progressively reveals detail by zoom level, and keeps deeper intelligence in a side rail instead of covering the map.
 
-## Run locally
+## What it does
 
-Requirements: Node.js 20+ and pnpm.
+- Rotatable MapLibre globe with selectable continents and countries
+- Country highlighting with geographic-neighbor and UCDP conflict links
+- Scale-aware Natural Earth rivers, lakes, cities, and labels
+- Georeferenced UCDP events with parties, fatality estimates, dates, and provenance
+- Live reporting from GDELT with Wikimedia Current Events failover
+- News imagery enriched through Wikimedia Commons with attribution metadata
+- World Bank indicators, UN Comtrade flows, global search, topic timelines, and Swagger API documentation
+- PostgreSQL persistence through Prisma when `DATABASE_URL` is configured
+
+## Architecture
+
+The application uses the Next.js 16 App Router and React 19 for the experience layer. TanStack Query manages remote state, Zustand manages globe focus, and MapLibre GL renders the geographic layers. A NestJS 11 API normalizes public providers, caches responses, exposes provenance, and writes successful ingestions to PostgreSQL through Prisma.
 
 ```text
-pnpm install
-pnpm dev
+Next.js → TanStack Query → NestJS API → public providers
+                               └──────→ Prisma → PostgreSQL
 ```
 
-Open `http://localhost:3000`. Production validation uses `pnpm typecheck` and `pnpm build`.
+## The system
+
+![Zoomed-out geoP globe](docs/screenshots/geop-world.png)
+
+The global view remains readable while showing real conflict and publisher activity. At regional zoom, country names, cities, rivers, lakes, event locations, and news markers become progressively denser.
+
+![Africa intelligence focus](docs/screenshots/geop-africa-focus.png)
+
+Country pages keep the map and intelligence profile connected, with the selected state highlighted and its source-backed context alongside it.
+
+![Country intelligence profile](docs/screenshots/geop-country.png)
 
 ## Technology
 
-- Next.js App Router, React, and strict TypeScript
-- Tailwind CSS
-- MapLibre GL JS with globe projection and locally packaged Natural Earth-derived land geometry
-- Zustand for shared selection and map state
-- TanStack Query for asynchronous data access
-- Apache ECharts for economy and trade visualizations
-- Lucide icons
+Next.js 16 · React 19 · TypeScript · Tailwind CSS · MapLibre GL · TanStack Query · Zustand · ECharts · NestJS 11 · PostgreSQL · Prisma · Swagger
 
-No paid tile provider, API key, live external geopolitical API, or image-of-Earth substitute is used. The current globe is self-contained and uses local world geometry.
+The complete provider and endpoint inventory is in [API-SOURCES.md](API-SOURCES.md).
 
-## Important routes
+## Run locally
 
-- `/` and `/world` — interactive global experience
-- `/continent/africa` — continent experience
-- `/region/horn-of-africa` — regional experience
-- `/country/ethiopia` — country intelligence experience
-- `/topic/nile-gerd` — topic experience
-- `/relationship/ethiopia/china` — bilateral relationship experience
-- `/discover` — topic and conflict discovery
-- `/news` — global news discovery
-
-## Frontend structure
-
-The UI is organized by domain under `src/components`: globe, geo entities, topics, relationships, news, statements, timelines, charts, discovery, navigation, and reusable states. Route files remain small and pass URL state into these experiences.
-
-Strong domain types live in `src/types/domain.ts`. Mock records live under `src/data/mock`, never directly inside view components. Components retrieve records through:
-
-```text
-UI → TanStack Query hooks → geoService → mockRepository
+```bash
+pnpm install
+copy .env.example .env
+pnpm db:generate
+pnpm db:migrate
+pnpm data:geography
+pnpm dev
 ```
 
-The Zustand store contains only shared interaction state: map focus, selected entity/topic, related actors, preview visibility, map mode, legend, and time range.
+Set a real PostgreSQL password in `DATABASE_URL` before running the migration. The web app runs at `http://localhost:3000`, the API at `http://localhost:4000/api/v1`, and Swagger at `http://localhost:4000/api/docs`.
 
-## MapLibre architecture
+## Verification
 
-`GeoGlobe` renders a draggable WebGL Earth using MapLibre's globe projection and local Natural Earth-derived country geometry. The global view supports continent focus controls and country hover cards. Selecting a continent rotates the globe toward it; selecting a country then eases to a closer view with country context.
+```bash
+pnpm typecheck
+pnpm build:api
+pnpm build
+```
 
-At close zoom the globe progressively reveals country names, major cities, rivers, lakes, seas, conflicts, news pulses, and trade corridors. Hovering a feature updates a fixed intelligence rail rather than covering the map. Conflict routes expose actors, explicitly illustrative impact ranges, multiple coverage framings, and related reports; trade routes expose flow and currency graphics. The Amazon and Nile also open an inset magnified map.
-
-The news source marks, headlines, casualty ranges, trade values, lake shapes, and route paths are prototype representations. They must not be treated as live reporting, verified casualty accounting, navigational hydrography, or current financial data. The interface is designed so verified provider feeds and licensed source assets can replace these local records later.
-
-## Later NestJS migration
-
-The repository binding in `src/services/geo-service.ts` is the replacement boundary. A future NestJS client can implement the same repository methods and replace the local binding while query keys, loading/error behavior, shared map state, route components, and domain presentation stay intact.
-
-## Data notice
-
-All news headlines, statement summaries, economic values, trade values, timelines, and coverage comparisons are fictional or illustrative prototype content. A subtle “Demo dataset” indicator appears in the application header.
+Provider failures are surfaced as unavailable states; geoP does not generate substitute records. UCDP values remain estimates tied to their release and precision fields, and Wikimedia media retains provider, artist, and license metadata.

@@ -7,6 +7,7 @@ export type MapHoverDetail = {
   lens?: boolean;
   slug?: string;
   source?: string;
+  eventId?: string;
 };
 
 export type ConflictBrief = {

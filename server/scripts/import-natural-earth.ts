@@ -3,21 +3,16 @@ import * as shapefile from "shapefile";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 import type { Feature, FeatureCollection, Geometry, GeoJsonProperties } from "geojson";
 
 const DOWNLOAD_ROOT = "https://naciscdn.org/naturalearth/10m";
 const layers = {
   rivers: [
     `${DOWNLOAD_ROOT}/physical/ne_10m_rivers_lake_centerlines_scale_rank.zip`,
-    `${DOWNLOAD_ROOT}/physical/ne_10m_rivers_australia.zip`,
-    `${DOWNLOAD_ROOT}/physical/ne_10m_rivers_europe.zip`,
-    `${DOWNLOAD_ROOT}/physical/ne_10m_rivers_north_america.zip`,
   ],
   lakes: [
     `${DOWNLOAD_ROOT}/physical/ne_10m_lakes.zip`,
-    `${DOWNLOAD_ROOT}/physical/ne_10m_lakes_australia.zip`,
-    `${DOWNLOAD_ROOT}/physical/ne_10m_lakes_europe.zip`,
-    `${DOWNLOAD_ROOT}/physical/ne_10m_lakes_north_america.zip`,
   ],
   cities: [`${DOWNLOAD_ROOT}/cultural/ne_10m_populated_places_simple.zip`],
 };
@@ -59,6 +54,16 @@ function compactFeature(layer: string, feature: Feature): Feature {
   return { ...feature, properties };
 }
 
+function deduplicate(features: Feature[]): Feature[] {
+  const seen = new Set<string>();
+  return features.filter((feature) => {
+    const key = createHash("sha1").update(JSON.stringify(feature.geometry)).digest("hex");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 async function main() {
   const staging = join(tmpdir(), `geop-natural-earth-${process.pid}`);
   await mkdir(staging, { recursive: true });
@@ -70,7 +75,7 @@ async function main() {
         process.stdout.write(`Downloading ${url}\n`);
         features.push(...(await readZip(url, staging)).map((feature) => compactFeature(name, feature)));
       }
-      output[name] = { type: "FeatureCollection", features };
+      output[name] = { type: "FeatureCollection", features: deduplicate(features) };
     }
     const destination = join(process.cwd(), "server", "data", "natural-earth-10m.json");
     await mkdir(join(process.cwd(), "server", "data"), { recursive: true });
@@ -81,7 +86,7 @@ async function main() {
         scale: "1:10m",
         retrievedAt: new Date().toISOString(),
         downloads: Object.values(layers).flat(),
-        note: "Base hydrography plus the Australia, Europe and North America supplemental river/lake layers supplied by Natural Earth.",
+        note: "Global 1:10m rivers, lake centerlines, lakes, and populated places from Natural Earth. Regional supplements are intentionally excluded to prevent overlapping duplicate geometry.",
       },
     }));
     process.stdout.write(`Wrote ${destination}: ${output.rivers.features.length} rivers, ${output.lakes.features.length} lakes, ${output.cities.features.length} populated places.\n`);

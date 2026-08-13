@@ -13,3 +13,4 @@ export const useRelationship = (a: string, b: string) => useQuery({ queryKey: ["
 export const useSearch = (query: string, enabled: boolean) => useQuery({ queryKey: ["search", query], queryFn: () => geoService.search(query), enabled, staleTime: 300_000 });
 export const useMapGeography = () => useQuery({ queryKey: ["map-geography"], queryFn: geoService.geography, staleTime: 86_400_000 });
 export const useConflictEvents = () => useQuery({ queryKey: ["conflict-events"], queryFn: geoService.conflicts, staleTime: 3_600_000 });
+export const useMediaSearch = (query: string, enabled: boolean) => useQuery({ queryKey: ["media", query], queryFn: () => geoService.media(query), enabled: enabled && Boolean(query), staleTime: 86_400_000 });
