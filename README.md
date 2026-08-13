@@ -50,7 +50,9 @@ The Zustand store contains only shared interaction state: map focus, selected en
 
 ## MapLibre architecture
 
-`GeoGlobe` currently renders a clear, draggable WebGL Earth using MapLibre's globe projection and local Natural Earth-derived land geometry. This first step intentionally focuses on rotation, zoom, and reset. Country selection and geopolitical layers will be introduced later.
+`GeoGlobe` renders a draggable WebGL Earth using MapLibre's globe projection and local Natural Earth-derived country geometry. The global view supports continent focus controls and country hover cards. Selecting a continent rotates the globe toward it; selecting a country then eases to a closer view with country context.
+
+At close zoom the globe reveals the prototype's city, river, conflict/topic, and news layers. Hovering any available feature opens a compact explanation card. The Amazon and Nile also open an inset magnified map, while conflict/topic markers can open the same detail lens. Coverage remains intentionally limited and illustrative until live data services are connected.
 
 ## Later NestJS migration
 

@@ -151,18 +151,16 @@ export function GeoGlobe({ compact = false, controlledEntity, controlledTopic, r
   const newsFeatures = useMemo(() => buildNewsFeatures(news, entities), [entities, news]);
 
   const updateVisibility = useCallback((map: MapLibreMap) => {
+    if (!map.isStyleLoaded()) return;
     const close = zoom >= 2.5;
-    map.setLayoutProperty("cities", "visibility", close ? "visible" : "none");
-    map.setLayoutProperty("city-labels", "visibility", close ? "visible" : "none");
-    map.setLayoutProperty("rivers", "visibility", close ? "visible" : "none");
-    map.setLayoutProperty("river-hit", "visibility", close ? "visible" : "none");
-    map.setLayoutProperty("events", "visibility", close ? "visible" : "none");
-    map.setLayoutProperty("event-halo", "visibility", close ? "visible" : "none");
-    map.setLayoutProperty("news-markers", "visibility", close ? "visible" : "none");
+    ["cities", "city-labels", "rivers", "river-hit", "events", "event-halo", "news-markers"].forEach((layer) => {
+      if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", close ? "visible" : "none");
+    });
   }, [zoom]);
 
   useEffect(() => {
     if (!container.current || mapRef.current) return;
+    setReady(false);
     setWorkerUrl("/maplibre-gl-worker.mjs");
     const map = new MapLibreMap({
       container: container.current,
@@ -194,7 +192,7 @@ export function GeoGlobe({ compact = false, controlledEntity, controlledTopic, r
       map.addLayer({ id: "events", type: "circle", source: "events", layout: { visibility: "none" }, paint: { "circle-radius": 5, "circle-color": ["match", ["get", "kind"], "Conflict", "#d46c65", "Tension", "#d6a75d", "#79a5c2"], "circle-stroke-width": 1, "circle-stroke-color": "#101417" } });
       map.addSource("news", { type: "geojson", data: newsFeatures });
       map.addLayer({ id: "news-markers", type: "circle", source: "news", layout: { visibility: "none" }, paint: { "circle-radius": 4, "circle-color": "#75b996", "circle-stroke-width": 1, "circle-stroke-color": "#101417" } });
-      setReady(true);
+      map.once("idle", () => setReady(true));
     });
 
     const hoverLayer = (layer: string, type: MapHoverDetail["type"]) => {
@@ -301,7 +299,7 @@ export function GeoGlobe({ compact = false, controlledEntity, controlledTopic, r
 
       {!compact ? <div className="absolute left-5 top-5 z-10 hidden w-52 border border-white/12 bg-[#091014]/92 p-3 backdrop-blur-md md:block"><div className="eyebrow mb-2">Continents</div>{continentFocuses.map((item) => <button key={item.slug} onClick={() => focusContinent(item.slug)} className={`flex w-full items-center justify-between border-t border-white/[.07] py-2.5 text-left text-xs ${selectedContinent === item.slug ? "text-[var(--accent)]" : "text-[var(--muted)] hover:text-white"}`}><span>{item.name}</span><span className="mono text-[8px]">FOCUS</span></button>)}</div> : null}
 
-      {hover ? <div className="pointer-events-none absolute left-1/2 top-20 z-20 w-64 -translate-x-1/2 border border-white/12 bg-[#091014]/95 p-4 shadow-2xl backdrop-blur-xl"><div className="eyebrow text-[var(--accent)]">{hover.eyebrow}</div><div className="mt-2 text-sm font-medium">{hover.name}</div><p className="mt-2 text-[10px] leading-5 text-[var(--muted)]">{hover.detail}</p>{hover.lens ? <div className="mono mt-3 text-[8px] text-[#93bac3]">CLICK FOR MAGNIFIED DETAIL</div> : null}</div> : null}
+      {hover ? <div className="pointer-events-none absolute left-1/2 top-20 z-20 w-64 -translate-x-1/2 border border-white/12 bg-[#091014]/95 p-4 shadow-2xl backdrop-blur-xl"><div className="eyebrow text-[var(--accent)]">{hover.eyebrow}</div><div className="mt-2 text-sm font-medium">{hover.name}</div><p className="mt-2 text-[10px] leading-5 text-[var(--muted)]">{hover.detail}</p>{hover.lens ? <div className="mono mt-3 text-[8px] text-[#93bac3]">MAGNIFIED DETAIL OPEN</div> : null}</div> : null}
 
       {(selectedCountryInfo || activeContinent) && !compact ? <aside className="absolute bottom-5 right-16 top-5 z-10 hidden w-72 overflow-y-auto border border-white/12 bg-[#091014]/94 p-5 backdrop-blur-xl lg:block"><button onClick={reset} className="absolute right-3 top-3 p-1.5 text-[var(--muted)]" aria-label="Close focused view"><X size={15}/></button><div className="eyebrow">{selectedCountryInfo ? "Country focus" : "Continent focus"}</div><h2 className="mt-4 text-2xl font-medium tracking-[-.04em]">{activeEntity?.name ?? selectedCountryInfo?.name ?? activeContinent?.name}</h2><p className="mt-3 text-xs leading-6 text-[var(--muted)]">{activeEntity?.summary ?? selectedCountryInfo?.detail ?? activeContinent?.description}</p>{selectedCountryInfo ? <>{activeEntity ? <div className="mt-6 grid grid-cols-2 gap-px bg-white/10"><FocusMetric label="Capital" value={activeEntity.capital}/><FocusMetric label="Population" value={activeEntity.population}/><FocusMetric label="Region" value={activeEntity.region}/><FocusMetric label="Topics" value={String(activeEntity.topicSlugs.length)}/></div> : <div className="mt-6 border border-white/10 p-4 text-[10px] leading-5 text-[var(--muted)]">Global selection works here, but detailed city, news, and conflict coverage is limited to the richer demo countries.</div>}<div className="mt-6"><div className="eyebrow mb-2">Limited live view</div>{relevantNews.length ? relevantNews.map((item) => <div key={item.id} className="border-t border-white/10 py-3"><div className="text-[10px] leading-4">{item.headline}</div><div className="mono mt-1 text-[8px] text-[var(--faint)]">{item.source} · DEMO</div></div>) : <div className="border-t border-white/10 py-3 text-[10px] text-[var(--muted)]">No rich news entries in this limited demo region.</div>}</div></> : <div className="mt-6 border-t border-white/10 pt-4 text-[10px] leading-5 text-[var(--muted)]">Click a country to rotate and zoom closer. Cities, rivers, conflicts, and news markers appear as the camera approaches.</div>}</aside> : null}
 
