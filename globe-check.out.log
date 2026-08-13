@@ -139,3 +139,36 @@
  GET /topic/sudan-conflict 200 in 1125ms (next.js: 885ms, application-code: 240ms)
  GET / 200 in 93ms (next.js: 19ms, application-code: 74ms)
  GET / 200 in 236ms (next.js: 18ms, application-code: 218ms)
+✓ Compiled in 644ms
+ GET / 200 in 152ms (next.js: 65ms, application-code: 87ms)
+✓ Compiled in 527ms
+ GET / 200 in 145ms (next.js: 43ms, application-code: 102ms)
+✓ Compiled in 1565ms
+ GET / 200 in 137ms (next.js: 44ms, application-code: 94ms)
+✓ Compiled in 641ms
+ GET / 200 in 137ms (next.js: 46ms, application-code: 91ms)
+ GET / 200 in 797ms (next.js: 21ms, application-code: 776ms)
+✓ Compiled in 1136ms
+ GET / 200 in 357ms (next.js: 137ms, application-code: 220ms)
+ GET / 200 in 120ms (next.js: 15ms, application-code: 105ms)
+✓ Compiled in 1499ms
+ GET / 200 in 745ms (next.js: 430ms, application-code: 314ms)
+ GET / 200 in 143ms (next.js: 23ms, application-code: 120ms)
+ GET / 200 in 458ms (next.js: 41ms, application-code: 417ms)
+✓ Compiled in 2.7s
+ GET / 200 in 316ms (next.js: 98ms, application-code: 218ms)
+ GET / 200 in 213ms (next.js: 35ms, application-code: 178ms)
+ GET / 200 in 686ms (next.js: 21ms, application-code: 665ms)
+✓ Compiled in 1299ms
+ GET / 200 in 583ms (next.js: 35ms, application-code: 549ms)
+✓ Compiled in 3.1s
+ GET / 200 in 649ms (next.js: 98ms, application-code: 551ms)
+ GET / 200 in 184ms (next.js: 77ms, application-code: 107ms)
+ GET / 200 in 470ms (next.js: 20ms, application-code: 450ms)
+✓ Compiled in 1672ms
+ GET / 200 in 338ms (next.js: 73ms, application-code: 264ms)
+ GET / 200 in 144ms (next.js: 18ms, application-code: 126ms)
+ GET / 200 in 521ms (next.js: 19ms, application-code: 501ms)
+✓ Compiled in 1964ms
+ GET / 200 in 315ms (next.js: 84ms, application-code: 231ms)
+ GET / 200 in 227ms (next.js: 118ms, application-code: 110ms)

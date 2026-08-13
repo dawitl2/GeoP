@@ -52,7 +52,9 @@ The Zustand store contains only shared interaction state: map focus, selected en
 
 `GeoGlobe` renders a draggable WebGL Earth using MapLibre's globe projection and local Natural Earth-derived country geometry. The global view supports continent focus controls and country hover cards. Selecting a continent rotates the globe toward it; selecting a country then eases to a closer view with country context.
 
-At close zoom the globe reveals the prototype's city, river, conflict/topic, and news layers. Hovering any available feature opens a compact explanation card. The Amazon and Nile also open an inset magnified map, while conflict/topic markers can open the same detail lens. Coverage remains intentionally limited and illustrative until live data services are connected.
+At close zoom the globe progressively reveals country names, major cities, rivers, lakes, seas, conflicts, news pulses, and trade corridors. Hovering a feature updates a fixed intelligence rail rather than covering the map. Conflict routes expose actors, explicitly illustrative impact ranges, multiple coverage framings, and related reports; trade routes expose flow and currency graphics. The Amazon and Nile also open an inset magnified map.
+
+The news source marks, headlines, casualty ranges, trade values, lake shapes, and route paths are prototype representations. They must not be treated as live reporting, verified casualty accounting, navigational hydrography, or current financial data. The interface is designed so verified provider feeds and licensed source assets can replace these local records later.
 
 ## Later NestJS migration
 
