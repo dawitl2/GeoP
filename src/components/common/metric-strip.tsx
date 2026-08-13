@@ -1,0 +1,2 @@
+import type { Metric } from "@/types/domain";
+export function MetricStrip({metrics}:{metrics:Metric[]}){return <div className="metric-grid">{metrics.slice(0,4).map(metric=><div key={metric.label}><div className="eyebrow">{metric.label}</div><div className="mt-2 text-xl font-medium tracking-[-.03em]">{metric.value}</div><div className="mt-1 text-[9px] text-[var(--faint)]">{metric.detail}</div></div>)}</div>}

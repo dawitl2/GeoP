@@ -1,0 +1,3 @@
+import Link from "next/link";
+import { Globe2 } from "lucide-react";
+export default function NotFound(){return <main className="grid min-h-screen place-items-center bg-[#080a0c] p-6 text-white"><div className="max-w-md text-center"><Globe2 className="mx-auto text-[var(--accent)]"/><div className="eyebrow mt-5">Outside the current atlas</div><h1 className="mt-3 text-3xl">This view is not available.</h1><p className="mt-3 text-sm leading-6 text-[var(--muted)]">Return to the world view and continue exploring the Level 1 dataset.</p><Link href="/world" className="mt-6 inline-block border border-white/15 px-4 py-3 text-xs">Return to world</Link></div></main>}

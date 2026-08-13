@@ -1,0 +1,3 @@
+const aliases: Record<string,string> = { "united-states-of-america":"united-states", "russian-federation":"russia", "czechia":"czech-republic", "dem-rep-congo":"democratic-republic-of-the-congo", "dominican-rep":"dominican-republic", "eq-guinea":"equatorial-guinea", "s-sudan":"south-sudan", "w-sahara":"western-sahara", "solomon-is":"solomon-islands", "bosnia-and-herz":"bosnia-and-herzegovina", "central-african-rep":"central-african-republic" };
+export function slugifyCountryName(name:string){const slug=name.toLowerCase().replace(/[.'’]/g,"").replace(/&/g,"and").replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");return aliases[slug]??slug;}
+export const titleCase = (value:string) => value.replaceAll("-"," ").replace(/\b\w/g,(m)=>m.toUpperCase());
