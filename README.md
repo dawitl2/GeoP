@@ -17,13 +17,13 @@ Open `http://localhost:3000`. Production validation uses `pnpm typecheck` and `p
 
 - Next.js App Router, React, and strict TypeScript
 - Tailwind CSS
-- MapLibre GL JS with globe projection and locally packaged Natural Earth-derived world geometry
+- MapLibre GL JS with globe projection and locally packaged Natural Earth-derived land geometry
 - Zustand for shared selection and map state
 - TanStack Query for asynchronous data access
 - Apache ECharts for economy and trade visualizations
 - Lucide icons
 
-No paid tile provider, API key, live external geopolitical API, or image-of-Earth substitute is used.
+No paid tile provider, API key, live external geopolitical API, or image-of-Earth substitute is used. The current globe is self-contained and uses local world geometry.
 
 ## Important routes
 
@@ -50,7 +50,7 @@ The Zustand store contains only shared interaction state: map focus, selected en
 
 ## MapLibre architecture
 
-`GeoGlobe` converts the local `world-atlas` TopoJSON file into GeoJSON at runtime, then renders country fills, borders, selection states, topic dimming, conflict/tension hotspots, and curved relationship lines as WebGL map layers. It does not fetch tiles. Rich Level 1 profiles are mapped onto the global geometry; other countries remain hoverable and selectable as generalized geographic entities.
+`GeoGlobe` currently renders a clear, draggable WebGL Earth using MapLibre's globe projection and local Natural Earth-derived land geometry. This first step intentionally focuses on rotation, zoom, and reset. Country selection and geopolitical layers will be introduced later.
 
 ## Later NestJS migration
 
