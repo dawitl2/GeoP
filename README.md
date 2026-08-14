@@ -24,8 +24,6 @@ Next.js → TanStack Query → NestJS API → public providers
 
 ## The system
 
-![Zoomed-out geoP globe](docs/screenshots/geop-world.png)
-
 The global view remains readable while showing real conflict and publisher activity. At regional zoom, country names, cities, rivers, lakes, event locations, and news markers become progressively denser.
 
 ![Africa intelligence focus](docs/screenshots/geop-africa-focus.png)
