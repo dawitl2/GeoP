@@ -32,9 +32,23 @@ Country pages keep the map and intelligence profile connected, with the selected
 
 ![Country intelligence profile](docs/screenshots/geop-country.png)
 
-## Technology
+## Technology stack
 
-Next.js 16 · React 19 · TypeScript · Tailwind CSS · MapLibre GL · TanStack Query · Zustand · ECharts · NestJS 11 · PostgreSQL · Prisma · Swagger
+| Layer | Technology | Role in geoP |
+| --- | --- | --- |
+| Web application | Next.js 16 App Router, React 19, TypeScript | Server and client rendering, routing, layouts, and the interactive intelligence experience |
+| Interface | Tailwind CSS, Lucide React | Responsive visual system, controls, navigation, and map-side intelligence panels |
+| Globe and maps | MapLibre GL JS 6, WebGL globe projection | Upright rotatable 3D Earth, camera animation, zoom, geographic picking, and layered map rendering |
+| Globe atmosphere | MapLibre atmosphere and fog rendering | Horizon depth, atmospheric color, and a readable globe silhouette |
+| Geographic layers | GeoJSON, TopoJSON, Natural Earth, world-atlas | Countries, borders, cities, rivers, lakes, labels, and scale-aware physical geography |
+| Map interaction | MapLibre feature queries and camera controls | Country selection, highlighting, hover previews, relationship lines, and animated fly-to navigation |
+| Client data | TanStack Query, Axios | API requests, caching, retries, and live-data refresh |
+| Client state | Zustand | Selected geography, globe focus, filters, and cross-page interaction state |
+| Data visualization | Apache ECharts | Trade, economic, conflict, and timeline graphics |
+| Backend API | NestJS 11, RxJS, class-validator | Provider orchestration, normalized intelligence endpoints, validation, caching, and scheduled ingestion |
+| API contract | OpenAPI and Swagger via `@nestjs/swagger` | Interactive API documentation and typed endpoint discovery |
+| Persistence | PostgreSQL, Prisma ORM | Durable storage, schema management, provider provenance, and successful-ingestion records |
+| Security and delivery | Helmet, compression | HTTP security headers and compressed API responses |
 
 The complete provider and endpoint inventory is in [API-SOURCES.md](API-SOURCES.md).
 
@@ -60,3 +74,5 @@ pnpm build
 ```
 
 Provider failures are surfaced as unavailable states; geoP does not generate substitute records. UCDP values remain estimates tied to their release and precision fields, and Wikimedia media retains provider, artist, and license metadata.
+
+geoP was created as a hands-on project for learning Next.js, NestJS, OpenAPI/Swagger, PostgreSQL, Prisma, and real-world API integration.
